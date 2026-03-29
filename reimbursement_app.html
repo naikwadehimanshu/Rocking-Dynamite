@@ -1020,20 +1020,31 @@ async function handleLogin() {
   const data = await apiCall('/auth/login','POST',{email,password:pass},false);
 
   if (data?.token) {
+    // 1. SUCCESS: Backend works and credentials match!
     STATE.token = data.token;
     STATE.user  = data.user;
     localStorage.setItem('rf_token', data.token);
     localStorage.setItem('rf_user', JSON.stringify(data.user));
     launchApp();
   } else {
-    // Demo mode fallback
+    // 2. FALLBACK: API failed (server offline/error). Checking local demo data.
     const found = DEMO_USERS.find(u => u.email === email);
-    if (found && pass === 'demo123') {
+    
+    // Allow login IF: it's a hardcoded demo user with 'demo123' OR it's the newly created admin (ID 99)
+    if (found && (pass === 'demo123' || found.id === 99)) {
       STATE.user = found;
       STATE.token = 'demo_token';
+      
+      // Keep the dashboard clean for the new offline user
+      if (found.id === 99) {
+          DEMO_EXPENSES.length = 0;      
+          DEMO_APPROVALS.length = 0;     
+          DEMO_RULES.length = 0; 
+      }
+      
       launchApp();
     } else {
-      document.getElementById('loginGlobalErr').textContent = 'Invalid email or password.';
+      document.getElementById('loginGlobalErr').textContent = 'Invalid email or password. (Note: If your backend is offline, only demo accounts or newly created offline accounts work).';
       document.getElementById('loginGlobalErr').classList.remove('hidden');
     }
   }
@@ -1059,13 +1070,36 @@ async function handleSignup() {
     email: document.getElementById('signupEmail').value.trim(),
     country: document.getElementById('signupCountry').value,
     password: document.getElementById('signupPassword').value,
+    // currency: opt.dataset.currency || 'USD',
+    // currency_symbol: opt.dataset.symbol || '$'
   };
 
+  // Try real API first
   const data = await apiCall('/auth/signup','POST',payload,false);
 
-  // Demo mode: create mock user
-  STATE.user = { id:99, name:payload.name, email:payload.email, role:'admin', company_id:99 };
-  STATE.token = 'demo_token';
+  // Set local state based on what the user typed
+  STATE.user = { id: data?.user?.id || 99, name: payload.name, email: payload.email, role: 'admin', company_id: data?.user?.company_id || 99 };
+  STATE.token = data?.token || 'demo_token';
+  STATE.companyName = payload.company;
+  STATE.signupCountry = payload.country;
+
+  // Dynamically set currency
+  const sel = document.getElementById('signupCountry');
+  const opt = sel.options[sel.selectedIndex];
+  STATE.companyCurrency = opt.dataset.currency || 'USD';
+  STATE.companySymbol   = opt.dataset.symbol   || '$';
+
+  // Wipe the demo arrays clean so the dashboard is empty
+  DEMO_USERS.length = 0;         
+  DEMO_USERS.push(STATE.user);   
+  DEMO_EXPENSES.length = 0;      
+  DEMO_APPROVALS.length = 0;     
+  DEMO_RULES.length = 0;         
+
+  // Pre-fill the currency dropdown for new expenses
+  const expCurrencyEl = document.getElementById('expCurrency');
+  if (expCurrencyEl) expCurrencyEl.value = STATE.companyCurrency;
+
   toast('Workspace created! Welcome, ' + payload.name.split(' ')[0] + '.', 'success');
   launchApp();
 
@@ -1432,19 +1466,24 @@ function users() {
 }
 
 // ── COMPANY (Admin) ──────────────────────────────────────
+// ── COMPANY (Admin) ──────────────────────────────────────
 function company() {
+  const compName = STATE.companyName || STATE.user.name + "'s Company";
+  const compCountry = STATE.signupCountry || 'United States';
+  const compCurrency = `${STATE.companyCurrency} — ${STATE.companySymbol}`;
+
   setTitle('Company Settings', '');
   render(`
     <div class="card" style="max-width:560px;">
       <div class="card-header"><span class="card-title">Company Profile</span></div>
       <div class="modal-body">
         <div class="form-group"><label class="form-label">Company Name</label>
-          <input class="form-input" value="Acme Corp"></div>
+          <input class="form-input" value="${compName}"></div>
         <div class="form-row">
           <div class="form-group"><label class="form-label">Country</label>
-            <input class="form-input" value="United States" readonly></div>
+            <input class="form-input" value="${compCountry}" readonly></div>
           <div class="form-group"><label class="form-label">Base Currency</label>
-            <input class="form-input" value="USD — US Dollar" readonly></div>
+            <input class="form-input" value="${compCurrency}" readonly></div>
         </div>
         <p style="font-size:12px;color:var(--text-3);">Currency is set on signup and used for all amount conversions. Contact support to change.</p>
         <div style="margin-top:20px;"><button class="btn btn-primary">Save Changes</button></div>

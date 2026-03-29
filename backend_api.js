@@ -89,25 +89,151 @@ exports.requireRole = (...roles) => (req, res, next) => {
 
 
 // ── routes/auth.js ──────────────────────────────────────────
-/*
+
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const pool = require('../config/db'); // Adjust path based on your actual file structure
+
+const SECRET = process.env.JWT_SECRET || 'changeme';
+
 router.post('/signup', async (req, res) => {
-  // 1. Validate: name, email, password, country
-  // 2. Fetch currency for country from restcountries API (or local JSON fallback)
-  // 3. db.beginTransaction()
-  // 4. INSERT companies (name derived from email domain, country, currency)
-  // 5. INSERT users (role='admin', company_id)
-  // 6. Hash password with bcrypt
-  // 7. Seed default expense_categories for company
-  // 8. db.commit()
-  // 9. Sign JWT { id, company_id, role } → return token + user
+  const { name, company, email, country, password } = req.body;
+
+  // Basic validation
+  if (!name || !company || !email || !password || !country) {
+    return res.status(400).json({ error: 'All fields are required.' });
+  }
+
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Check if user email already exists
+    const [existingUsers] = await connection.execute(
+      'SELECT id FROM users WHERE email = ?',
+      [email]
+    );
+    if (existingUsers.length > 0) {
+      await connection.rollback();
+      return res.status(409).json({ error: 'Email is already in use.' });
+    }
+
+    // 2. Determine basic currency info (You can expand this with a real map/API later)
+    // Defaulting to USD/$ if logic isn't provided by frontend
+    let currency = 'USD';
+    let currencySymbol = '$';
+    if (country.toLowerCase().includes('india')) { currency = 'INR'; currencySymbol = '₹'; }
+    else if (country.toLowerCase().includes('kingdom')) { currency = 'GBP'; currencySymbol = '£'; }
+    else if (country.toLowerCase().includes('euro')) { currency = 'EUR'; currencySymbol = '€'; }
+    else if (country.toLowerCase().includes('japan')) { currency = 'JPY'; currencySymbol = '¥'; }
+
+    // 3. Create the Company
+    const [companyResult] = await connection.execute(
+      'INSERT INTO companies (name, country, currency, currency_symbol) VALUES (?, ?, ?, ?)',
+      [company, country, currency, currencySymbol]
+    );
+    const newCompanyId = companyResult.insertId;
+
+    // 4. Hash the password & Create the Admin User
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [userResult] = await connection.execute(
+      'INSERT INTO users (company_id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
+      [newCompanyId, name, email, hashedPassword, 'admin']
+    );
+    const newUserId = userResult.insertId;
+
+    // 5. Seed default expense categories for the new company
+    const defaultCategories = ['Travel', 'Meals & Entertainment', 'Accommodation', 'Office Supplies', 'Software', 'Miscellaneous'];
+    for (const cat of defaultCategories) {
+      await connection.execute(
+        'INSERT INTO expense_categories (company_id, name) VALUES (?, ?)',
+        [newCompanyId, cat]
+      );
+    }
+
+    await connection.commit();
+
+    // 6. Generate JWT and respond
+    const userPayload = {
+      id: newUserId,
+      company_id: newCompanyId,
+      name: name,
+      email: email,
+      role: 'admin'
+    };
+
+    const token = jwt.sign(userPayload, SECRET, { expiresIn: '24h' });
+
+    res.status(201).json({
+      message: 'Workspace created successfully',
+      token,
+      user: userPayload
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('Signup Error:', error);
+    res.status(500).json({ error: 'Failed to create workspace. Please try again.' });
+  } finally {
+    connection.release();
+  }
 });
 
 router.post('/login', async (req, res) => {
-  // 1. Find user by email
-  // 2. bcrypt.compare password
-  // 3. Sign JWT → return token + user
+  const { email, password } = req.body;
+
+  // Basic validation
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  try {
+    // 1. Find user by email
+    const [users] = await pool.execute(
+      'SELECT id, company_id, name, email, password, role FROM users WHERE email = ?',
+      [email]
+    );
+
+    // If no user is found with that email
+    if (users.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    const user = users[0];
+
+    // 2. Compare the provided password with the hashed password in the database
+    const isMatch = await bcrypt.compare(password, user.password);
+    
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // 3. Create the payload and sign the JWT
+    const userPayload = {
+      id: user.id,
+      company_id: user.company_id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    };
+
+    const token = jwt.sign(userPayload, SECRET, { expiresIn: '24h' });
+
+    // 4. Return the token and user data to the frontend
+    res.json({
+      message: 'Login successful',
+      token,
+      user: userPayload
+    });
+
+  } catch (error) {
+    console.error('Login Error:', error);
+    res.status(500).json({ error: 'An error occurred during login. Please try again.' });
+  }
 });
-*/
 
 
 // ── routes/expenses.js ──────────────────────────────────────
@@ -245,3 +371,33 @@ UPLOAD_DIR=./uploads
   }
 }
 */
+
+STATE.user = { id:99, name:payload.name, email:payload.email, role:'admin', company_id:99 };
+STATE.token = 'demo_token';
+STATE.isDemo = false;   // ← add this
+// Reset all data to empty for new user
+DEMO_EXPENSES = [];
+DEMO_APPROVALS = [];
+// DEMO_RULES stays empty too — admin hasn't created any yet
+// In handleSignup(), after creating STATE.user:
+DEMO_USERS.length = 0;   // clear array in-place
+DEMO_USERS.push(STATE.user);  // only the new admin exists
+// In handleSignup():
+DEMO_RULES.length = 0;
+
+function company() {
+  // Replace hardcoded values:
+  const companyName = STATE.companyName || STATE.user.name + "'s Company";
+  const country = STATE.signupCountry || '—';
+  const currency = STATE.companyCurrency || '—';
+  // use these variables in the render() HTML
+}
+// In handleSignup():
+STATE.companyName = payload.company;
+STATE.signupCountry = payload.country;
+// currency from the selected option's data-currency attribute:
+const sel = document.getElementById('signupCountry');
+const opt = sel.options[sel.selectedIndex];
+STATE.companyCurrency = opt.dataset.currency || 'USD';
+STATE.companySymbol   = opt.dataset.symbol   || '$';
+document.getElementById('expCurrency').value = STATE.companyCurrency || 'USD';
