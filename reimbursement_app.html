@@ -7,21 +7,36 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #F4F7F9;           /* Cooler off-white background */
-    --surface: #FFFFFF;      /* Pure White */
-    --surface2: #E8ECEF;     /* Light grayish-blue for secondary elements */
+:root {
+    --bg: #F4F7F9;
+    --surface: #FFFFFF;
+    --surface2: #E8ECEF;
     --border: #DEE2E6;
     --border-strong: #CED4DA;
     --text: #1C252E;
     --text-2: #52606D;
     --text-3: #8B9AAB;
     
-    --accent: #204166;       /* Primary Navy Blue (Buttons, links) */
-    --accent-dark: #12263E;  /* Deeper Navy (Sidebar, hover states) */
-    --accent-light: #83D4A4; /* Mint Green (Badges, progress bars, highlights) */
+    --accent: #204166;       /* Primary Navy Blue */
+    --accent-dark: #12263E;  /* Deeper Navy */
+    --accent-light: #83D4A4; /* Mint Green */
     
-    /* Leave the danger, warn, info, and purple variables as they are below this line... */
+    --danger: #E63946;
+    --danger-light: #FDECEC;
+    --warn: #F4A261;
+    --warn-light: #FEF5EB;
+    --info: #457B9D;
+    --info-light: #EBF2F6;
+    --purple: #7209B7;
+    --purple-light: #F4EBFC;
+
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 12px rgba(0,0,0,0.05);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+  }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -43,7 +58,7 @@
     background: linear-gradient(135deg, #12263E 0%, #204166 40%, #83D4A4 100%);
     padding: 24px;
   }
-  }
+  
   .auth-card {
     background: var(--surface);
     border-radius: 16px;
@@ -58,7 +73,7 @@
     gap: 10px;
     margin-bottom: 32px;
   }
-  
+
   .auth-logo-icon {
     width: 40px; height: 40px;
     background: var(--accent-light); /* Mint Green */
@@ -1104,9 +1119,33 @@ function handleLogout() {
 // ─────────────────────────────────────────────────────────
 // APP LAUNCH
 // ─────────────────────────────────────────────────────────
-function launchApp() {
+async function launchApp() {
   document.getElementById('authWrap').classList.add('hidden');
   document.getElementById('appShell').classList.remove('hidden');
+  
+  // Show a loading state if you want, while data fetches
+  
+  // 1. Fetch the real data from MySQL!
+  const data = await apiCall('/init-data', 'GET');
+  
+  if (data) {
+    // 2. Overwrite the hardcoded demo arrays with your real database data
+    // We empty them first (.length = 0) to prevent JS errors, then push the real data in.
+    
+    DEMO_USERS.length = 0;
+    DEMO_USERS.push(...data.users);
+    
+    DEMO_EXPENSES.length = 0;
+    DEMO_EXPENSES.push(...data.expenses);
+    
+    DEMO_APPROVALS.length = 0;
+    DEMO_APPROVALS.push(...data.approvals);
+    
+    DEMO_RULES.length = 0;
+    DEMO_RULES.push(...data.rules);
+  }
+
+  // 3. Now build the UI using the real data
   buildNav();
   updateUserPill();
   showPage('dashboard');
