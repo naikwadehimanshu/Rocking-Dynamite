@@ -8,32 +8,20 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #F7F6F2;
-    --surface: #FFFFFF;
-    --surface2: #F0EEE8;
-    --border: #E2DED5;
-    --border-strong: #C8C3B8;
-    --text: #1C1A17;
-    --text-2: #5C5850;
-    --text-3: #9C9890;
-    --accent: #2D6A4F;
-    --accent-light: #E8F4EF;
-    --accent-dark: #1B4332;
-    --danger: #C0392B;
-    --danger-light: #FDF0EF;
-    --warn: #B7791F;
-    --warn-light: #FEF8EC;
-    --info: #1A6696;
-    --info-light: #EBF4FB;
-    --purple: #5B21B6;
-    --purple-light: #F3F0FF;
-    --font: 'DM Sans', sans-serif;
-    --mono: 'DM Mono', monospace;
-    --radius: 10px;
-    --radius-sm: 6px;
-    --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.09), 0 2px 4px rgba(0,0,0,0.06);
-  }
+    --bg: #F4F7F9;           /* Cooler off-white background */
+    --surface: #FFFFFF;      /* Pure White */
+    --surface2: #E8ECEF;     /* Light grayish-blue for secondary elements */
+    --border: #DEE2E6;
+    --border-strong: #CED4DA;
+    --text: #1C252E;
+    --text-2: #52606D;
+    --text-3: #8B9AAB;
+    
+    --accent: #204166;       /* Primary Navy Blue (Buttons, links) */
+    --accent-dark: #12263E;  /* Deeper Navy (Sidebar, hover states) */
+    --accent-light: #83D4A4; /* Mint Green (Badges, progress bars, highlights) */
+    
+    /* Leave the danger, warn, info, and purple variables as they are below this line... */
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -52,8 +40,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #1B4332 0%, #2D6A4F 50%, #40916C 100%);
+    background: linear-gradient(135deg, #12263E 0%, #204166 40%, #83D4A4 100%);
     padding: 24px;
+  }
   }
   .auth-card {
     background: var(--surface);
@@ -69,15 +58,15 @@
     gap: 10px;
     margin-bottom: 32px;
   }
+  
   .auth-logo-icon {
     width: 40px; height: 40px;
-    background: var(--accent);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    color: #fff;
-    font-size: 18px;
-    font-weight: 600;
+    background: var(--accent-light); /* Mint Green */
+    color: var(--accent-dark);       /* Navy Blue text */
+    /* ... keep the rest ... */
   }
+
+  
   .auth-logo-text {
     font-size: 20px;
     font-weight: 600;
@@ -189,10 +178,9 @@
   }
   .sidebar-logo-icon {
     width: 34px; height: 34px;
-    background: var(--accent);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    color: #fff; font-weight: 700; font-size: 16px;
+    background: var(--accent-light); /* Mint Green */
+    color: var(--accent-dark);       /* Navy Blue text */
+    /* ... keep the rest ... */
   }
   .sidebar-logo-text {
     font-size: 16px; font-weight: 600;
@@ -563,8 +551,8 @@
 <div id="authWrap" class="auth-wrap">
   <div class="auth-card fade-in">
     <div class="auth-logo">
-      <div class="auth-logo-icon">R</div>
-      <span class="auth-logo-text">ReimburseFlow</span>
+      <div class="auth-logo-icon">S</div>
+      <span class="auth-logo-text">Spendy</span>
     </div>
 
     <h1 class="auth-title" id="authTitle">Welcome back</h1>
@@ -649,7 +637,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div class="sidebar-logo-icon">R</div>
-      <span class="sidebar-logo-text">ReimburseFlow</span>
+      <span class="sidebar-logo-text">Spendy</span>
     </div>
 
     <div id="navLinks" style="flex:1;overflow-y:auto;padding-top:8px;"></div>
@@ -819,10 +807,9 @@
       </div>
       <div class="form-group">
         <label class="form-label">Temporary password</label>
-        <input type="password" id="newUserPassword" class="form-input" placeholder="Min 8 characters">
-        <div class="form-error hidden" id="newUserPasswordErr"></div>
+        <input type="text" id="newUserPassword" class="form-input" value="Auto-generated & Emailed" disabled style="background: var(--surface2); color: var(--text-3); cursor: not-allowed;">
+        <p style="font-size:12px;color:var(--text-3);margin-top:4px;">A unique secure password will be sent to the user's email address.</p>
       </div>
-    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('userModal')">Cancel</button>
       <button class="btn btn-primary" onclick="createUser()">Add Member</button>
@@ -1731,25 +1718,53 @@ function toggleManagerField() {
   document.getElementById('managerField').style.display = role==='employee'?'block':'none';
 }
 
-function createUser() {
+async function createUser() {
   let ok = true;
   ok = validateField('newUserName','newUserNameErr',v=>v.trim().length>=2,'Name required') && ok;
   ok = validateField('newUserEmail','newUserEmailErr',v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),'Valid email required') && ok;
-  ok = validateField('newUserPassword','newUserPasswordErr',v=>v.length>=8,'Min 8 characters') && ok;
   if (!ok) return;
 
-  const newUser = {
-    id: DEMO_USERS.length + 1,
+  // Set loading state on the button
+  const btn = document.querySelector('#userModal .btn-primary');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Sending Email...';
+
+  const payload = {
     name: document.getElementById('newUserName').value.trim(),
     email: document.getElementById('newUserEmail').value.trim(),
     role: document.getElementById('newUserRole').value,
-    manager_id: parseInt(document.getElementById('newUserManager').value)||null,
-    company_id: 1, is_active: 1,
+    manager_id: parseInt(document.getElementById('newUserManager').value) || null
   };
-  DEMO_USERS.push(newUser);
+
+  // Call the real backend API
+  const data = await apiCall('/users', 'POST', payload);
+
+  if (data && !data.error) {
+    toast('Team member added & password emailed!', 'success');
+  } else {
+    // Fallback for Demo Mode (if backend is offline)
+    const randomPass = Math.random().toString(36).slice(-8); // Generate 8-char demo password
+    const newUser = {
+      id: DEMO_USERS.length + 1,
+      name: payload.name,
+      email: payload.email,
+      role: payload.role,
+      manager_id: payload.manager_id,
+      company_id: STATE.user.company_id || 1, 
+      is_active: 1,
+    };
+    DEMO_USERS.push(newUser);
+    console.log(`[DEMO MODE] Email sent to ${payload.email} with password: ${randomPass}`);
+    toast('Demo user created! Check browser console for the password.', 'success');
+  }
+
   closeModal('userModal');
-  toast('Team member added!','success');
-  users();
+  users(); // Refresh the table
+
+  // Reset button state
+  btn.disabled = false;
+  btn.textContent = originalText;
 }
 
 function toggleUserStatus(userId) {
